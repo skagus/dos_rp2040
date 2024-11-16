@@ -41,14 +41,28 @@
 
 //------------- prototypes -------------//
 
+#define PRINTF(fmt,...)		cdc_printf(CDC_DBG, fmt, ##__VA_ARGS__)
+
 #define BYTE_PER_PAGE		(256)
 #define BYTE_PER_SECTOR		(4096)
 #define PAGE_PER_SECTOR		(BYTE_PER_SECTOR / BYTE_PER_PATE)
 
+#define FLASH_SIZE				(0x200000)  // 2MB.
+#define BASE_FLASH_FW_ORG		(0x100000)  // 1MB.
+#define BASE_FLASH_FW_COPY		(0x180000)  // 1.5MB.
+
+bool fw_update();
+
+
 void erase_flash(uint32_t offset, uint32_t size)
 {
 	uint32_t end_offset = offset + size;
-	cdc_printf(CDC_DBG, "Erase: %X ~ %X\n", offset, end_offset); 
+	PRINTF("Erase: %X ~ %X\n", offset, end_offset);
+	if (end_offset >= offset + size)
+	{
+
+	}
+//	busy_wait_ms (500);
 
 	while(offset < end_offset)
 	{
@@ -58,13 +72,13 @@ void erase_flash(uint32_t offset, uint32_t size)
 
 		offset += BYTE_PER_SECTOR;
 	}
-	cdc_printf(CDC_DBG, "Erase done\n");
+	PRINTF("\nErase done\n");
 }
 
 void prog_flash(uint32_t offset, uint32_t size, uint8_t* data)
 {
 	uint32_t end_offset = offset + size;
-	cdc_printf(CDC_DBG, "PGM: %X ~ %X\n", offset, end_offset); 
+	PRINTF("PGM: %X ~ %X\n", offset, end_offset); 
 	while(offset < end_offset)
 	{
 		uint32_t interrupts = save_and_disable_interrupts();
@@ -74,7 +88,7 @@ void prog_flash(uint32_t offset, uint32_t size, uint8_t* data)
 		offset += BYTE_PER_PAGE;
 		data += BYTE_PER_PAGE;
 	}
-	cdc_printf(CDC_DBG, "PGM Done\n");
+	PRINTF("\nPGM Done\n");
 }
 
 void dump_flash(uint32_t offset, uint32_t size)
@@ -83,50 +97,47 @@ void dump_flash(uint32_t offset, uint32_t size)
 	uint32_t data[read_size / 4];
 	uint32_t end_offset = offset + size;
 
-	cdc_printf(CDC_DBG, "Flash Read: %X %X\n", XIP_BASE + offset, XIP_BASE + end_offset); 
+	PRINTF("Flash Read: %X %X\n", XIP_BASE + offset, XIP_BASE + end_offset); 
 
 	while(offset < end_offset)
 	{
-		uint32_t interrupts = save_and_disable_interrupts();
+//		uint32_t interrupts = save_and_disable_interrupts();
 		memcpy(data, (const uint8_t*)(XIP_BASE + offset), read_size);
-		restore_interrupts(interrupts);
+//		restore_interrupts(interrupts);
 
 		for(int i=0; i< read_size / 4; i++)
 		{
 			if( i % 16 == 0)
 			{
-				cdc_printf(CDC_DBG, "\n%8X :", offset + (i * 4));
+				PRINTF("\n%8X :", offset + (i * 4));
 			}
-			cdc_printf(CDC_DBG, "%08X ", data[i]);
+			PRINTF("%08X ", data[i]);
 		}
 		offset += read_size;
 	}
-	cdc_printf(CDC_DBG, "Read Done\n");
+	PRINTF("\nRead Done\n");
 }
 
-#define BASE_FLASH_FW_ORG		(0x200000)  // 2MB.
-#define BASE_FLASH_FW_COPY		(0x300000)  // 3MB.
 
 uint32_t handle_uf2_block(struct uf2_block* uf2)
 {
 	static uint32_t start_addr;
-	cdc_printf(CDC_DBG, "Rcv(%d/%d): %X, %d\n",
+	PRINTF("Rcv(%d/%d): %X, %d\n",
 			uf2->block_no, uf2->num_blocks, uf2->target_addr, uf2->payload_size);
 
 	if(0 == uf2->block_no)
 	{
 		uint32_t bytes = uf2->num_blocks * BYTE_PER_PAGE; 
 		start_addr = uf2->target_addr;
-		cdc_printf(CDC_DBG, "erase 0x%X, 0x%X\n", BASE_FLASH_FW_COPY, bytes);
+		PRINTF("erase 0x%X, 0x%X\n", BASE_FLASH_FW_COPY, bytes);
 		erase_flash(BASE_FLASH_FW_COPY, bytes);
 	}
-	cdc_printf(CDC_DBG, "program 0x%X, 0x%X\n",
-		BASE_FLASH_FW_COPY + uf2->target_addr - start_addr,
-		uf2->payload_size);
-	prog_flash(BASE_FLASH_FW_COPY + uf2->target_addr - start_addr, uf2->data, uf2->payload_size);
+	uint32_t offset = BASE_FLASH_FW_COPY + uf2->target_addr - start_addr;
+	PRINTF("program 0x%X, 0x%X\n", offset, uf2->payload_size);
+	prog_flash(offset, uf2->payload_size, uf2->data);
 	if(uf2->block_no == uf2->num_blocks - 1)
 	{
-		cdc_printf(CDC_DBG, "UF2 Done\n");
+		PRINTF("UF2 Done\n");
 	}
 }
 
@@ -184,16 +195,16 @@ int gb_RunUF2 = 1;
 
 static void run_cmd(char* line)
 {
-	cdc_printf(CDC_DBG, "CMD: %s\n", line);
+	PRINTF("CMD: %s\n", line);
 
 	char* tok = strtok(line, " ");
-	cdc_printf(CDC_DBG, "TOK: %s\n", tok);
+	PRINTF("TOK: %s\n", tok);
 	do 
 	{
 		if (STR_CMP("uf2", tok))
 		{
 			gb_RunUF2 = (0 != gb_RunUF2) ? 0 : 1;
-			cdc_printf(CDC_DBG, "UF2 Run: %d\n", gb_RunUF2);
+			PRINTF("UF2 Run: %d\n", gb_RunUF2);
 			return;
 		}
 
@@ -235,13 +246,17 @@ static void run_cmd(char* line)
 			if(NULL == tok) break;
 			uint32_t size = parse_number(tok);
 
-
 			prog_flash(base, size, NULL);
+			return;
+		}
+		if (STR_CMP("update", tok))
+		{
+			fw_update();
 			return;
 		}
 	} while(0);
 
-	cdc_printf(CDC_DBG, "Invalid command\n");
+	PRINTF("Invalid command\n");
 }
 
 static void cdc_task(void)
@@ -257,7 +272,7 @@ static void cdc_task(void)
 		strncpy(line + len, buf, count);
 		len += count;
 		buf[count] = '\0';
-		cdc_printf(CDC_DBG, "%s", buf);
+		PRINTF("%s", buf);
 
 		char last = buf[count - 1];
 		if(('\r' == last) || ('\n' == last))
@@ -269,7 +284,7 @@ static void cdc_task(void)
 				run_cmd(line);
 			}
 			len = 0;
-			cdc_printf(CDC_DBG, "$> ");
+			PRINTF("$> ");
 		}
 	}
 }
@@ -287,10 +302,62 @@ int64_t alarm_callback(alarm_id_t id, __unused void *user_data)
 
 bool repeating_timer_callback(__unused struct repeating_timer *t)
 {
-	cdc_printf(0, "Repeat at %lld\n", time_us_64());
+	PRINTF("Repeat at %lld\n", time_us_64());
 	return true;
 }
 #endif
+bool check_all_ff(uint8_t* buffer, uint32_t bytes)
+{
+	uint32_t* buffer_4b = (uint32_t*)buffer;
+	uint32_t size = bytes / sizeof(uint32_t);
+	for(int i=0; i< size; i++)
+	{
+		if(0xFFFFFFFF != buffer_4b[i])
+		{
+			return false;
+		}
+	}
+	return true;
+}
+
+
+bool fw_update()
+{
+	uint8_t buffer[BYTE_PER_PAGE];
+	memcpy(buffer, (const uint8_t*)(XIP_BASE + BASE_FLASH_FW_COPY), BYTE_PER_PAGE);
+	if(false == check_all_ff(buffer, BYTE_PER_PAGE))
+	{
+		PRINTF("Start Update\n");
+		uint32_t offset = 0;
+		while(true)
+		{
+			memcpy(buffer, XIP_BASE + BASE_FLASH_FW_COPY + offset, BYTE_PER_PAGE);
+			if(true == check_all_ff(buffer, BYTE_PER_PAGE))
+			{
+				PRINTF("Migration done : 0x%X bytes\n", offset);
+				uint32_t erase_off = 0;
+				while(erase_off < offset)
+				{
+					erase_flash(BASE_FLASH_FW_COPY + erase_off, BYTE_PER_SECTOR);
+					erase_off += BYTE_PER_SECTOR;
+				}
+				break;
+			}
+			if(0 == (offset % BYTE_PER_SECTOR))
+			{
+				erase_flash(BASE_FLASH_FW_ORG + offset, BYTE_PER_SECTOR);
+			}
+			prog_flash(BASE_FLASH_FW_ORG + offset, BYTE_PER_PAGE, buffer);
+			offset += BYTE_PER_PAGE;
+		}
+	}
+	else
+	{
+		PRINTF("No FW available\n");
+	}
+	return true;
+}
+
 /*------------- MAIN -------------*/
 int main(void)
 {
@@ -302,7 +369,7 @@ int main(void)
 #if 0
 		if(true == timer_fired )
 		{ // reserve new alarm.
-			cdc_printf(0, "Alarm fired\n");
+			PRINTF("Alarm fired\n");
 			timer_fired = false;
 			add_alarm_in_ms(2000, alarm_callback, NULL, false);
 		}

@@ -1,0 +1,8 @@
+Makefile
+*.elf
+*.bin
+*.dis
+*.map
+*.uf2
+*.cmake
+
