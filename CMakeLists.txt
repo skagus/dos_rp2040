@@ -5,8 +5,6 @@ pico_sdk_init()
 add_executable(pico_bl)
 target_sources(pico_bl PUBLIC
     ${CMAKE_CURRENT_LIST_DIR}/main.c
-    ${CMAKE_CURRENT_LIST_DIR}/cli.c
-    ${CMAKE_CURRENT_LIST_DIR}/sched.c
     ${CMAKE_CURRENT_LIST_DIR}/lld_cdc.c
 	${CMAKE_CURRENT_LIST_DIR}/usb_descriptors.c
 )
