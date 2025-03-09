@@ -6,7 +6,7 @@
 #include "dos.h"
 #include "lfs.h"
 #include "lfs_util.h"
-#include "lld_cdc.h"
+//#include "lld_cdc.h"
 
 #define MAX_PATH_LEN		(260)
 #define FS_LFS				(1)		// LittleFS or SPIFFS

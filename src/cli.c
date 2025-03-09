@@ -4,7 +4,7 @@
 #include <string.h>
 #include <stdlib.h>
 #include <stdbool.h>
-#include "lld_cdc.h"
+//#include "lld_cdc.h"
 #include "cli.h"
 
 static const char* TAG = "CLI";

@@ -3,16 +3,16 @@
 #include <string.h>
 #include <ctype.h>
 
-#include "bsp/board.h"
+//#include "bsp/board.h"
 #include "pico/stdlib.h"
-#include "tusb.h"
+//#include "tusb.h"
 #include "uf2.h"
 
 #include "hardware/timer.h"
 #include "hardware/irq.h"
 #include "hardware/flash.h"
 #include "hardware/sync.h"
-#include "lld_cdc.h"
+//#include "lld_cdc.h"
 #include "cli.h"
 //------------- prototypes -------------//
 
@@ -201,6 +201,7 @@ void cmd_Update(uint8_t argc, char* argv[])
 	}
 }
 
+#if 0
 void FU_task()
 {
 	static int rcv_byte = 0;
@@ -227,6 +228,7 @@ void FU_task()
 		}
 	}
 }
+#endif
 
 void FU_init()
 {

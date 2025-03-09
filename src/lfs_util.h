@@ -60,7 +60,7 @@
 #include <stdio.h>
 #endif
 
-#include "lld_cdc.h"
+//#include "lld_cdc.h"
 
 #ifdef __cplusplus
 extern "C"
@@ -116,7 +116,7 @@ extern "C"
 // Runtime assertions
 #ifndef LFS_ASSERT
 #ifndef LFS_NO_ASSERT
-#define LFS_ASSERT(test) assert(test)
+#define LFS_ASSERT(test) if(!(test)) printf("Assert:%s, %d\n", __FILE__, __LINE__); //assert(test)
 #else
 #define LFS_ASSERT(test)
 #endif

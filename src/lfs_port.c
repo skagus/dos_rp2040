@@ -37,6 +37,11 @@ static int block_erase(const struct lfs_config *cfg, lfs_block_t block)
 	return 0;
 }
 
+static int block_sync(const struct lfs_config *cfg)
+{
+	return 0;
+}
+
 #define CACHE_SIZE			(512)
 #define LOOKAHEAD_SIZE		(32)
 #define NUM_CHUNK			(8)
@@ -52,7 +57,7 @@ struct lfs_config cfg = {
 	.read  = block_read,
 	.prog  = block_prog,
 	.erase = block_erase,
-	.sync  = NULL,
+	.sync  = block_sync,
 
 	.read_size = FLASH_PAGE_SIZE,
 	.prog_size = FLASH_PAGE_SIZE,
@@ -64,6 +69,8 @@ struct lfs_config cfg = {
 	.read_buffer = read_buffer,
 	.prog_buffer = prog_buffer,
 	.lookahead_buffer = lookahead_buffer,
+	.name_max = 255,
+	.file_max = 255,
 };
 
 lfs_t lfs;

@@ -28,16 +28,16 @@
 #include <string.h>
 #include <ctype.h>
 
-#include "bsp/board.h"
+//#include "bsp/board.h"
 #include "pico/stdlib.h"
-#include "tusb.h"
+//#include "tusb.h"
 #include "uf2.h"
 
 #include "hardware/timer.h"
 #include "hardware/irq.h"
 #include "hardware/flash.h"
 #include "hardware/sync.h"
-#include "lld_cdc.h"
+//#include "lld_cdc.h"
 
 #include "lfs.h"
 #include "dos.h"
@@ -50,7 +50,49 @@
 // USB CDC
 //--------------------------------------------------------------------+
 
+#if 1
+#define UART_ID		(uart0)
+#define UART_TX_PIN (0)
+#define UART_RX_PIN (1)
 
+void UART_Init()
+{
+	uart_init(UART_ID, 115200);
+	gpio_set_function(UART_TX_PIN, UART_FUNCSEL_NUM(UART_ID, UART_TX_PIN));
+	gpio_set_function(UART_RX_PIN, UART_FUNCSEL_NUM(UART_ID, UART_RX_PIN));
+
+	// Send out a character without any conversions
+	uart_putc_raw(UART_ID, 'A');
+
+	// Send out a character but do CR/LF conversions
+	uart_putc(UART_ID, 'B');
+
+	// Send out a string, with CR/LF conversions
+	uart_puts(UART_ID, " Hello, UART!\n");	
+}
+
+static void cli_task(void)
+{
+#if 1
+	if(uart_is_readable(UART_ID))
+	{
+		char ch = uart_getc(UART_ID);
+		CLI_PushRcv(ch);
+	}
+#else
+	if (tud_cdc_n_available(CDC_DBG) )
+	{
+		char buf[64];
+		uint32_t count = tud_cdc_n_read(CDC_DBG, buf, sizeof(buf));
+		for(int index = 0; index < count; index++)
+		{
+			CLI_PushRcv(buf[index]);
+		}
+	}
+#endif
+}
+
+#else
 static void cli_task(void)
 {
 	if (tud_cdc_n_available(CDC_DBG) )
@@ -63,17 +105,20 @@ static void cli_task(void)
 		}
 	}
 }
-
+#endif
 
 /*------------- MAIN -------------*/
 int main(void)
 {
-	board_init();
-	tusb_init();
+	stdio_init_all();
+//	board_init();
+//	tusb_init();
+	UART_Init();
 	CLI_Init();
 	FU_init();
 	DOS_Init();
 
+	printf("Hello World\n");
 	while (1)
 	{
 #if 0
@@ -85,9 +130,9 @@ int main(void)
 		}
 #endif
 		//__wfi();  //__asm ("wfi");
-		tud_task(); // tinyusb device task
+//		tud_task(); // tinyusb device task
 		cli_task();
-		FU_task();
+//		FU_task();
 	}
 
 	return 0;

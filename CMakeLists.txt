@@ -24,19 +24,21 @@ target_include_directories(my_boot PUBLIC
 	${CMAKE_CURRENT_LIST_DIR}/src
 )
 
-pico_enable_stdio_usb(my_boot 1)
-pico_enable_stdio_uart(my_boot 0)
+pico_enable_stdio_usb(my_boot 0)
+pico_enable_stdio_uart(my_boot 1)
 
 # In addition to pico_stdlib required for common PicoSDK functionality, add dependency on tinyusb_device
 # for TinyUSB device support and tinyusb_board for the additional board support library used by the example
 target_link_libraries(my_boot PUBLIC
 	pico_stdlib
-	tinyusb_device
-	tinyusb_board
 	hardware_flash
 	hardware_sync
+	hardware_uart
 	"-Wl,--wrap=malloc -Wl,--wrap=free"
 )
+#	tinyusb_device
+#	tinyusb_board
+
 
 # Linker script 변경.
 #pico_set_linker_script(my_boot ${CMAKE_CURRENT_LIST_DIR}/private_map.ld)
