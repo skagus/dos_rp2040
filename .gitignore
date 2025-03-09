@@ -6,3 +6,10 @@ Makefile
 *.uf2
 *.cmake
 
+CMakeCache.txt
+CMakeFiles/
+
+generated/
+build/
+pico-sdk/
+_deps/
