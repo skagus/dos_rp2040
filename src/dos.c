@@ -55,8 +55,7 @@ extern uint32_t __flash_fs_size;
 
 void _fs_info(uint8_t argc,char* argv[])
 {
-#if 1
-	printf("  XIP base: %X\n", XIP_BASE);
+	printf("LittleFS info\n");
 	printf("  FS base: %X\n", FS_BASE);
 	printf("  FS size: %X\n", FS_SIZE);
 	printf("  read_size: %d\n",cfg.read_size);
@@ -70,7 +69,6 @@ void _fs_info(uint8_t argc,char* argv[])
 	printf("  prog_buffer: %p\n",cfg.prog_buffer);
 	printf("  lookahead_buffer: %p\n",cfg.lookahead_buffer);
 	printf("  block_cycles: %d\n",cfg.block_cycles);
-#else
 
 	struct lfs_info info;
 	int ret  = lfs_stat(&lfs, "/", &info);
@@ -83,10 +81,36 @@ void _fs_info(uint8_t argc,char* argv[])
 	{
 		printf("esp_spiffs_info error\n");
 	}
-#endif
 }
 
-#if 0
+
+void _fs_list(uint8_t argc,char* argv[])
+{
+	if(argc < 2)
+	{
+		printf("needs directory name\n");
+		return;
+	}
+
+//	DIR* pDir = opendir(argv[1]);
+
+	lfs_dir_t dir;
+	if(lfs_dir_open(&lfs, &dir, argv[1]) < 0)
+	{
+		printf("directory open failed: %s\n", argv[1]);
+		return;
+	}
+
+	struct lfs_info info;
+	while(lfs_dir_read(&lfs, &dir, &info) > 0)
+	{
+		printf("[%d] %s (%d)\n", info.type, info.name, info.size);
+	}
+
+	lfs_dir_close(&lfs, &dir);
+}
+
+
 void _fs_write(uint8_t argc,char* argv[])
 {
 	if(argc < 2)
@@ -98,24 +122,23 @@ void _fs_write(uint8_t argc,char* argv[])
 	char nRcv;
 	// Use POSIX and C standard library functions to work with files.
 	// First create a file.
-	FILE* f = fopen(argv[1],"w");
+	// FILE* f = fopen(argv[1],"w");
 
-	if(NULL != f)
+	lfs_file_t f;
+	if(lfs_file_open(&lfs, &f, argv[1], LFS_O_CREAT | LFS_O_WRONLY) >= 0)
 	{
 		while(1)
 		{
-			if(UART_RxByte(&nRcv, 0))
+			//if(UART_RxByte(&nRcv, 0))
+			nRcv = getchar();
+			if(0x1A == nRcv) // Ctrl-Z
 			{
-				if(0x1A == nRcv) // Ctrl-Z
-				{
-					break;
-				}
-				printf("%c",nRcv);
-				fputc(nRcv, f);
+				break;
 			}
+			printf("%c",nRcv);
+			lfs_file_write(&lfs, &f, &nRcv, 1);
 		}
-
-		fclose(f);
+		lfs_file_close(&lfs, &f);
 	}
 	else
 	{
@@ -123,45 +146,80 @@ void _fs_write(uint8_t argc,char* argv[])
 	}
 }
 
-void _fs_list(uint8_t argc,char* argv[])
+
+#define SIZE_DUMP_BUF		(32)
+void _fs_dump(uint8_t argc,char* argv[])
 {
 	if(argc < 2)
 	{
-		printf("needs directory name\n");
+		printf("needs file name\n");
 		return;
 	}
 
-	DIR* pDir = opendir(argv[1]);
-	if(pDir != NULL)
-	{
-		char szPath[MAX_PATH_LEN];
-		strcpy(szPath, argv[1]);
-		strcat(szPath, "/");
-		int nLenPath = strlen(szPath);
-		struct dirent* pEntry;
-		struct stat st;
-		while((pEntry = readdir(pDir)) != NULL)
-		{
-			strcpy(szPath + nLenPath, pEntry->d_name);
-			stat(szPath, &st);
+	struct lfs_file file;
+	
+//	FILE* pFile = fopen(argv[1],"r");
 
-			if(st.st_mode & S_IFDIR)
+	if(lfs_file_open(&lfs, &file, argv[1], LFS_O_RDONLY) >= 0)
+	{
+		uint8_t aBuf[SIZE_DUMP_BUF];
+		int nBytes;
+		uint32_t nCnt = 0;
+
+		while(1)
+		{
+			nBytes = lfs_file_read(&lfs, &file, aBuf, SIZE_DUMP_BUF);
+			if(nBytes <= 0)
 			{
-				printf("%s (dir)\n", pEntry->d_name);
+				break;
 			}
-			else 
+			printf(" %4lX : ",nCnt * SIZE_DUMP_BUF);
+			for(uint8_t nIdx = 0; nIdx < nBytes; nIdx++)
 			{
-				snprintf(szPath,MAX_PATH_LEN,"%s/%s",argv[1],(char*)(pEntry->d_name));
-				printf("%s (%ld bytes)\n", pEntry->d_name,st.st_size);
+				printf("%02X ",aBuf[nIdx]);
 			}
+			nCnt++;
+			printf("\n");
 		}
-		closedir(pDir);
+		lfs_file_close(&lfs, &file);
 	}
 	else
 	{
-		printf("directory open failed: %s\n", argv[1]);
+		printf("Error while open: %s\n",argv[1]);
 	}
 }
+
+void _fs_cat(uint8_t argc,char* argv[])
+{
+	if(argc < 2)
+	{
+		printf("needs file name\n");
+		return;
+	}
+
+	struct lfs_file file;
+
+	if(lfs_file_open(&lfs, &file, argv[1], LFS_O_RDONLY) >= 0)
+	{
+		char buffer[16];
+		int bytes_read;
+
+		while((bytes_read = lfs_file_read(&lfs, &file, buffer, sizeof(buffer))) > 0)
+		{
+			for(int i = 0; i < bytes_read; i++)
+			{
+				putchar(buffer[i]);
+			}
+		}
+
+		lfs_file_close(&lfs, &file);
+	}
+	else
+	{
+		printf("Error while opening: %s\n", argv[1]);
+	}
+}
+
 
 void _fs_delete(uint8_t argc,char* argv[])
 {
@@ -170,7 +228,7 @@ void _fs_delete(uint8_t argc,char* argv[])
 		printf("needs file name\n");
 		return;
 	}
-	if(0 == unlink(argv[1]))
+	if(0 == lfs_remove(&lfs, argv[1]))
 	{
 		printf("delete %s done\n",argv[1]);
 	}
@@ -187,7 +245,7 @@ void _fs_rename(uint8_t argc,char* argv[])
 		printf("needs file name\n");
 		return;
 	}
-	if(0 == rename(argv[1],argv[2]))
+	if(0 == lfs_rename(&lfs, argv[1], argv[2]))
 	{
 		printf("rename %s to %s done\n",argv[1],argv[2]);
 	}
@@ -204,7 +262,7 @@ void _fs_mkdir(uint8_t argc,char* argv[])
 		printf("needs directory name\n");
 		return;
 	}
-	if(0 == mkdir(argv[1],0))
+	if(0 == lfs_mkdir(&lfs, argv[1]))
 	{
 		printf("make directory %s done\n",argv[1]);
 	}
@@ -222,129 +280,56 @@ void _fs_copy(uint8_t argc,char* argv[])
 		return;
 	}
 
-	FILE* pSrc = fopen(argv[1],"r");
-	FILE* pDst = fopen(argv[2],"w");
+	struct lfs_file src;
+	struct lfs_file dst;
 
-	if(NULL != pSrc && NULL != pDst)
+	if(lfs_file_open(&lfs, &src, argv[1], LFS_O_RDONLY) >= 0)
 	{
-		uint8_t aBuf[32];
-		int nBytes;
-
-		while(1)
+		if(lfs_file_open(&lfs, &dst, argv[2], LFS_O_CREAT | LFS_O_WRONLY) >= 0)
 		{
-			nBytes = fread(aBuf,1,32,pSrc);
-			if(nBytes <= 0)
+			char buffer[16];
+			int bytes_read;
+
+			while((bytes_read = lfs_file_read(&lfs, &src, buffer, sizeof(buffer))) > 0)
 			{
-				break;
+				lfs_file_write(&lfs, &dst, buffer, bytes_read);
 			}
-			fwrite(aBuf,1,nBytes,pDst);
+
+			lfs_file_close(&lfs, &dst);
 		}
-		printf("Copy done: %s --> %s\n", argv[1], argv[2]);
+		else
+		{
+			printf("Error while opening: %s\n", argv[2]);
+		}
+
+		lfs_file_close(&lfs, &src);
 	}
 	else
 	{
-		printf("Error while open: %s or %s\n",argv[1],argv[2]);
-	}
-	if(NULL != pSrc) fclose(pSrc);
-	if(NULL != pDst) fclose(pDst);
-}
-
-void _fs_read(uint8_t argc,char* argv[])
-{
-	if(argc < 2)
-	{
-		printf("needs file name\n");
-		return;
-	}
-
-	FILE* pFile = fopen(argv[1],"r");
-
-	if(NULL != pFile)
-	{
-		uint8_t aBuf[32];
-		int nBytes;
-
-		while(1)
-		{
-			nBytes = fread(aBuf,1,32,pFile);
-			if(nBytes <= 0)
-			{
-				break;
-			}
-			for(uint8_t nIdx = 0; nIdx < nBytes; nIdx++)
-			{
-				printf("%c",aBuf[nIdx]);
-			}
-		}
-		fclose(pFile);
-	}
-	else
-	{
-		printf("Error while open: %s\n",argv[1]);
+		printf("Error while opening: %s\n", argv[1]);
 	}
 }
 
-
-#define SIZE_DUMP_BUF		(32)
-void _fs_dump(uint8_t argc,char* argv[])
-{
-	if(argc < 2)
-	{
-		printf("needs file name\n");
-		return;
-	}
-
-	FILE* pFile = fopen(argv[1],"r");
-
-	if(NULL != pFile)
-	{
-		uint8_t aBuf[SIZE_DUMP_BUF];
-		int nBytes;
-		uint32_t nCnt = 0;
-
-		while(1)
-		{
-			nBytes = fread(aBuf,1,SIZE_DUMP_BUF,pFile);
-			if(nBytes <= 0)
-			{
-				break;
-			}
-			printf(" %4lX : ",nCnt * SIZE_DUMP_BUF);
-			for(uint8_t nIdx = 0; nIdx < nBytes; nIdx++)
-			{
-				printf("%02X ",aBuf[nIdx]);
-			}
-			nCnt++;
-			printf("\n");
-		}
-		fclose(pFile);
-	}
-	else
-	{
-		printf("Error while open: %s\n",argv[1]);
-	}
-}
-#endif
 
 extern void my_lfs_init();
 
 int DOS_Init()
 {
-
 	my_lfs_init();
 
 	CLI_Register("info",_fs_info);
 	CLI_Register("format",_fs_format);
 	CLI_Register("mount",_fs_mount);
-#if 0
-	CLI_Register("cat",_fs_read);
+
+	CLI_Register("ls",_fs_list);
 	CLI_Register("fdump",_fs_dump);
 	CLI_Register("fwrite",_fs_write);
-	CLI_Register("ls",_fs_list);
+
+	CLI_Register("cat",_fs_cat);
 	CLI_Register("rm",_fs_delete);
 	CLI_Register("mv",_fs_rename);
 	CLI_Register("mkdir",_fs_mkdir);
 	CLI_Register("cp",_fs_copy);
-#endif
+
 	return 0;
 }

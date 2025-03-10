@@ -44,7 +44,7 @@
 #include <inttypes.h>
 
 // Porting define.
-#define LFS_YES_TRACE
+//#define LFS_YES_TRACE
 //#define LFS_NO_MALLOC
 
 #ifndef LFS_NO_MALLOC

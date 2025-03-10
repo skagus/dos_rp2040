@@ -11,7 +11,7 @@ static const char* TAG = "CLI";
 
 //////////////////////////////////
 #define LEN_LINE            (64)
-#define MAX_CMD_COUNT       (16)
+#define MAX_CMD_COUNT       (32)
 #define MAX_ARG_TOKEN       (8)
 
 #define COUNT_LINE_BUF       (8)
@@ -239,6 +239,12 @@ uint32_t CLI_GetInt(char* szStr)
 
 void CLI_Register(char* szCmd,CmdHandler* pHandle)
 {
+	if(gnCmds >= MAX_CMD_COUNT)
+	{
+		printf("CLI_Register: Full\n");
+		return;
+	}
+
 	gaCmds[gnCmds].szCmd = szCmd;
 	gaCmds[gnCmds].pHandle = pHandle;
 	gnCmds++;
