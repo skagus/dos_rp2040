@@ -45,8 +45,8 @@ void _fs_mount(uint8_t argc,char* argv[])
 	}
 }
 
-#define FLASH_PAGE_SIZE		(256)
-#define FLASH_SECTOR_SIZE	(4096)
+//#define FLASH_PAGE_SIZE		(256)
+//#define FLASH_SECTOR_SIZE	(4096)
 extern uint32_t __flash_fs_start;
 extern uint32_t __flash_fs_size;
 

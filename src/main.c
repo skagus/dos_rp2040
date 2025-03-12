@@ -39,10 +39,10 @@
 #include "hardware/sync.h"
 //#include "lld_cdc.h"
 
-#include "lfs.h"
-#include "dos.h"
 #include "cli.h"
 #include "fw_util.h"
+#include "ymodem.h"
+#include "dos.h"
 //------------- prototypes -------------//
 
 
@@ -60,12 +60,6 @@ void UART_Init()
 	uart_init(UART_ID, 115200);
 	gpio_set_function(UART_TX_PIN, UART_FUNCSEL_NUM(UART_ID, UART_TX_PIN));
 	gpio_set_function(UART_RX_PIN, UART_FUNCSEL_NUM(UART_ID, UART_RX_PIN));
-
-	// Send out a character without any conversions
-	uart_putc_raw(UART_ID, 'A');
-
-	// Send out a character but do CR/LF conversions
-	uart_putc(UART_ID, 'B');
 
 	// Send out a string, with CR/LF conversions
 	uart_puts(UART_ID, " Hello, UART!\n");	
@@ -117,6 +111,7 @@ int main(void)
 	CLI_Init();
 	FU_init();
 	DOS_Init();
+	YM_Init();
 
 	printf("Hello World\n");
 	while (1)
