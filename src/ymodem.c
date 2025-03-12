@@ -21,7 +21,8 @@ uint8_t aBuf[MODEM_SEQ_SIZE + DATA_SIZE_EXT + MODEM_CRC_SIZE + 10];
 
 void tx_byte(char nCh)
 {
-	putchar(nCh);
+	//putchar(nCh);
+	stdio_putchar_raw(nCh);
 }
 
 /* return  true if a char received*/
@@ -40,6 +41,7 @@ void tx_packet(uint8_t* aBuf, uint32_t nSize)
 	{
 		tx_byte(aBuf[i]);
 	}
+	stdio_flush();
 }
 
 bool rx_packet(uint8_t* aBuf, uint32_t nSize)
@@ -336,13 +338,14 @@ void YM_Snd(char* szFullPath)
 	if(!expactRcvByte(MODEM_ACK)) goto ERROR;
 	if(!expactRcvByte(MODEM_C)) goto ERROR;
 
+	log_printf("Head done Name: %s, Size: %d\n", szFileName, nRestSize);
 	nSeq++;
 	while(true)
 	{
 		nSpaceLen = DATA_SIZE_EXT;
 		aBuf[0] = nSeq;
 		aBuf[1] = 0xFF - nSeq;
-		lfs_file_read(&lfs, &file, pData, nSpaceLen);
+		nDataLen = lfs_file_read(&lfs, &file, pData, nSpaceLen);
 		nRestSize -= nDataLen;
 		if(nDataLen <= 0)
 		{
@@ -360,6 +363,8 @@ void YM_Snd(char* szFullPath)
 		tx_byte(MODEM_STX);
 		tx_packet(aBuf, MODEM_SEQ_SIZE + nSpaceLen + MODEM_CRC_SIZE);
 		if(!expactRcvByte(MODEM_ACK)) goto ERROR;
+		log_printf("SEQ %d done\n", nSeq);
+
 		nSeq++;
 	}
 
@@ -370,6 +375,8 @@ void YM_Snd(char* szFullPath)
 	if(!expactRcvByte(MODEM_ACK)) goto ERROR;
 	if(!expactRcvByte(MODEM_C)) goto ERROR;
 
+	log_printf("End SEQ\n");
+
 	// Send Last Packet.
 	aBuf[0] = 0x00;
 	aBuf[1] = 0xFF;
@@ -379,7 +386,7 @@ void YM_Snd(char* szFullPath)
 	tx_packet(aBuf, MODEM_SEQ_SIZE + DATA_SIZE_ORG + MODEM_CRC_SIZE);
 	if(!expactRcvByte(MODEM_ACK)) goto ERROR;
 
-	log_printf("%3d: Success\n", __LINE__);
+	log_printf("Last Done\n");
 
 	printf("\n\nSuccess\n");
 	return;
