@@ -24,7 +24,9 @@
 #include "elf_loader.h"
 #include "elf.h"  // documentation: "man 5 elf"
 
+#define EN_REAL_LOAD		(1)
 #define MAX_MEM_CHUNK		(16)
+
 
 typedef struct _mem_chunk
 {
@@ -134,7 +136,9 @@ static void dump_mem(int cnt_load,  struct lfs_file* p_file)
 
 		int loaded = 0;
 		uint8_t* dst = (uint8_t*)p_mem->address;
+#if (0 == EN_REAL_LOAD)
 		uint8_t buffer[LOAD_SIZE];
+#endif
 		while(loaded < p_mem->size)
 		{
 			int to_read = p_mem->size - loaded;
@@ -142,7 +146,7 @@ static void dump_mem(int cnt_load,  struct lfs_file* p_file)
 			{
 				to_read = LOAD_SIZE;
 			}
-#if 1
+#if (0 == EN_REAL_LOAD)
 			lfs_file_read(&lfs, p_file, buffer, to_read);
 			printf("0x%8X : ", dst);
 			for(int i = 0; i< 4; i++)
