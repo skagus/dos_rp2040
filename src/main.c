@@ -43,6 +43,7 @@
 #include "fw_util.h"
 #include "ymodem.h"
 #include "dos.h"
+#include "elf_loader.h"
 //------------- prototypes -------------//
 
 
@@ -112,6 +113,7 @@ int main(void)
 	FU_init();
 	DOS_Init();
 	YM_Init();
+	Loader_Init();
 
 	printf("Hello World\n");
 	while (1)

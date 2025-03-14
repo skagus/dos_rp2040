@@ -4,7 +4,7 @@ MEMORY {
 	/*
 	RAM(rwx) : ORIGIN =  0x20000000, LENGTH = 256K 
 	*/
-	FS_AREA(rwx) : ORIGIN = 0x10020000, LENGTH = 128K
+	FS_AREA(rwx) : ORIGIN = 0x10020000, LENGTH = 1M
 }
 
 /* LittleFS 전용 영역 할당 */

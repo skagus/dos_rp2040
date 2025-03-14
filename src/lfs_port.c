@@ -70,7 +70,8 @@ struct lfs_config cfg = {
 	.prog_buffer = prog_buffer,
 	.lookahead_buffer = lookahead_buffer,
 	.name_max = 255,
-	.file_max = 255,
+	.attr_max = 512,
+	.file_max = 1024 * 128,
 };
 
 lfs_t lfs;

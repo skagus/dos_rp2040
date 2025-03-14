@@ -36,6 +36,7 @@ void cli_RunCmd(char* szCmdLine);
 
 void cli_CmdHelp(uint8_t argc,char* argv[])
 {
+	printf("Version: %s %s\n",__DATE__, __TIME__);
 	if(argc > 1)
 	{
 		int32_t nNum = atoi(argv[1]);

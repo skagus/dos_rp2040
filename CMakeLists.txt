@@ -13,6 +13,7 @@ target_sources(my_boot PUBLIC
 	${CMAKE_CURRENT_LIST_DIR}/src/dos.c
 	${CMAKE_CURRENT_LIST_DIR}/src/crc16.c
 	${CMAKE_CURRENT_LIST_DIR}/src/ymodem.c
+	${CMAKE_CURRENT_LIST_DIR}/src/elf_loader.c
 )
 
 #	${CMAKE_CURRENT_LIST_DIR}/src/lld_cdc.c

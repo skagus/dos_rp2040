@@ -1,6 +1,7 @@
 #include <stdint.h>
 #include <stdbool.h>
 #include "pico/stdlib.h"
+#include "hardware/flash.h"
 
 #include "lfs.h"
 #include "crc16.h"
@@ -142,6 +143,8 @@ bool _ParityCheck(bool bCRC, const uint8_t* aBuf, int nDataSize)
 	return false;
 }
 
+int err_code;
+#define ERROR(x)		{err_code=x;goto ERROR_RET;}
 
 void YM_Rcv(char* szTopDir)
 {
@@ -150,6 +153,7 @@ void YM_Rcv(char* szTopDir)
 	uint8_t nCh;
 	uint8_t nSeq = 0;
 	uint32_t nDataLen;
+	uint32_t nWritten = 0;
 
 	lfs_file_t file;
 
@@ -160,7 +164,7 @@ void YM_Rcv(char* szTopDir)
 		aFullPath[nDirLen++] = '/';
 		aFullPath[nDirLen] = 0;
 	}
-	printf("Start RX to %s(%d)\n", aFullPath, nDirLen);
+	printf("Start RX to %s\n", aFullPath);
 
 	log_printf("%3d, Start!!!!\n", __LINE__);
 
@@ -172,28 +176,31 @@ void YM_Rcv(char* szTopDir)
 		{
 			if(nCh == MODEM_SOH) nDataLen = DATA_SIZE_ORG;
 			else if(nCh == MODEM_STX) nDataLen = DATA_SIZE_EXT;
-			else goto ERROR;
+			else ERROR(__LINE__);
 			break;
 		}
 	}
 
 	// log_printf("%3d, LEN: %d\n", __LINE__, nDataLen);
 	// Receive Header.
-	if(rx_packet(aBuf, MODEM_SEQ_SIZE + nDataLen + MODEM_CRC_SIZE) == false) goto ERROR;
+	if(rx_packet(aBuf, MODEM_SEQ_SIZE + nDataLen + MODEM_CRC_SIZE) == false) ERROR(__LINE__);
 
-	if(aBuf[0] != nSeq) goto ERROR;
-	if(aBuf[1] != (0xFF - nSeq)) goto ERROR;
-	if(!_ParityCheck(true, pData, nDataLen)) goto ERROR;
+	if(aBuf[0] != nSeq) ERROR(__LINE__);
+	if(aBuf[1] != (0xFF - nSeq)) ERROR(__LINE__);
+	if(!_ParityCheck(true, pData, nDataLen)) ERROR(__LINE__);
 	// do something with file name.
 	strcpy(aFullPath + nDirLen, (char*)pData);
 	int fileSize = atoi((char*)pData + strlen((char*)pData) + 1);
-	
+	int nRestSize = fileSize;
 	log_printf("%3d: file name: %s, size: %s, %d\n",
 		__LINE__, pData, pData + strlen((char*)pData) + 1, fileSize);
 
-	if(fileSize <= 0) fileSize = INT32_MAX;
+	if(nRestSize <= 0) nRestSize = INT32_MAX;
 
-	if(lfs_file_open(&lfs, &file, aFullPath, LFS_O_CREAT | LFS_O_WRONLY) < 0) goto ERROR;
+	if(lfs_file_open(&lfs, &file, aFullPath, LFS_O_WRONLY | LFS_O_CREAT | LFS_O_APPEND) < 0)
+	{
+		ERROR(__LINE__);
+	}
 	////////
 	tx_byte(MODEM_ACK);
 	tx_byte(MODEM_C);
@@ -201,64 +208,81 @@ void YM_Rcv(char* szTopDir)
 
 	while(true)
 	{
-		if(rx_byte((char*)&nCh, TIMEOUT) == 0) goto ERROR;
+		if(rx_byte((char*)&nCh, TIMEOUT) == 0) ERROR(__LINE__);
 
 		if(nCh == MODEM_EOT)
 		{
 			lfs_file_close(&lfs, &file);
+			log_printf("FClose %d\n", nSeq);
 			break;
 		}
 		else if(nCh == MODEM_SOH) nDataLen = DATA_SIZE_ORG;
 		else if(nCh == MODEM_STX) nDataLen = DATA_SIZE_EXT;
-		else goto ERROR; // if(nCh == MODEM_CAN) goto ERROR;
+		else ERROR(__LINE__); // if(nCh == MODEM_CAN) goto ERROR;
 
-		if(!rx_packet(aBuf, MODEM_SEQ_SIZE + nDataLen + MODEM_CRC_SIZE)) goto ERROR;
-		if(aBuf[0] != nSeq) goto ERROR;
-		if(aBuf[1] != (0xFF - nSeq)) goto ERROR;
-		if(!_ParityCheck(true, pData, nDataLen)) goto ERROR;
+		if(!rx_packet(aBuf, MODEM_SEQ_SIZE + nDataLen + MODEM_CRC_SIZE)) ERROR(__LINE__);
+		if(aBuf[0] != nSeq) ERROR(__LINE__);
+		if(aBuf[1] != (0xFF - nSeq)) ERROR(__LINE__);
+		if(!_ParityCheck(true, pData, nDataLen)) ERROR(__LINE__);
 		// do something with data.
-		if(fileSize < nDataLen)
+		if(nRestSize < nDataLen)
 		{
-			nDataLen = fileSize;
+			nDataLen = nRestSize;
 		}
-		lfs_file_write(&lfs, &file, pData, nDataLen);
+#if 0
+		#define MAX_WRITE_SIZE	(128)
+		int nRest = nDataLen;
+		uint8_t* pBuf = pData;
+		while(nRest > 0)
+		{
+			int thisLen = nRest > MAX_WRITE_SIZE ? MAX_WRITE_SIZE : nRest;
+			int len = lfs_file_write(&lfs, &file, pBuf, thisLen);
+			log_printf("W %d=%d\n", thisLen, len);
+			pBuf += thisLen;
+			nRest -= thisLen;
+		}
+#else		
+		int len = lfs_file_write(&lfs, &file, pData, nDataLen);
+		log_printf("Write %d:%d\n", nSeq, len);
+#endif
+
+		nWritten += nDataLen;
 		///
 		tx_byte(MODEM_ACK);
 		log_printf("%3d SEQ: %d\n", __LINE__, nSeq);
 		nSeq++;
-		fileSize -= nDataLen;
+		nRestSize -= nDataLen;
 	}
 
 	log_printf("%3d\n", __LINE__);
 
 	/// End Sequence.
 	tx_byte(MODEM_NACK);
-	if(!expactRcvByte(MODEM_EOT)) goto ERROR;
+	if(!expactRcvByte(MODEM_EOT)) ERROR(__LINE__);
 	tx_byte(MODEM_ACK);
 
 	log_printf("%3d\n", __LINE__);
 
 	// Receive Last Packet.
 	tx_byte(MODEM_C);
-	if(!expactRcvByte(MODEM_SOH)) goto ERROR;
+	if(!expactRcvByte(MODEM_SOH)) ERROR(__LINE__);
 	log_printf("%3d\n", __LINE__);
-	if(!rx_packet(aBuf, MODEM_SEQ_SIZE + DATA_SIZE_ORG + MODEM_CRC_SIZE)) goto ERROR;
-	if(aBuf[0] != 0x00) goto ERROR;
-	if(aBuf[1] != 0xFF) goto ERROR;
+	if(!rx_packet(aBuf, MODEM_SEQ_SIZE + DATA_SIZE_ORG + MODEM_CRC_SIZE)) ERROR(__LINE__);
+	if(aBuf[0] != 0x00) ERROR(__LINE__);
+	if(aBuf[1] != 0xFF) ERROR(__LINE__);
 	tx_byte(MODEM_ACK);
 
-	log_printf("%3d: Success\n", __LINE__);
-
-	printf("\n\nSuccess\n");
+	log_printf("Success: %s (%d, %d)\n", aFullPath, fileSize, nWritten);
+	printf("Success: %s (%d, %d)\n", aFullPath, fileSize, nWritten);
 	return;
 	
-ERROR:
+ERROR_RET:
 	lfs_file_close(&lfs, &file);
 	tx_byte(MODEM_CAN);
 	tx_byte(MODEM_CAN);
 	tx_byte(MODEM_CAN);
-	log_printf("%3d: Error!!!\n", __LINE__);
-	printf("\n\nError\n");
+	log_printf("RET Error!!!: %d\n", err_code);
+	printf("\n\nError: %d\n", err_code);
 }
 
 
@@ -295,7 +319,8 @@ void YM_Snd(char* szFullPath)
 	uint32_t nSpaceLen = DATA_SIZE_ORG;
 	uint32_t nDataLen;
 	lfs_file_t file;
-	int nRestSize = _getFileSize(szFullPath);
+	int nFileSize = _getFileSize(szFullPath);
+	int nRestSize = nFileSize;
 
 	if(lfs_file_open(&lfs, &file, szFullPath, LFS_O_RDONLY) < 0) goto ERROR;
 
@@ -303,7 +328,7 @@ void YM_Snd(char* szFullPath)
 	if(szFileName == NULL) szFileName = szFullPath;
 	else szFileName++;
 
-	printf("Start TX: %s (%d)\n", szFullPath, nRestSize);
+	printf("Start TX: %s (%d)\n", szFullPath, nFileSize);
 
 	// Wait Start.
 	int nRestTry = 20;
@@ -386,9 +411,8 @@ void YM_Snd(char* szFullPath)
 	tx_packet(aBuf, MODEM_SEQ_SIZE + DATA_SIZE_ORG + MODEM_CRC_SIZE);
 	if(!expactRcvByte(MODEM_ACK)) goto ERROR;
 
-	log_printf("Last Done\n");
-
-	printf("\n\nSuccess\n");
+	printf("\nSuccess: %s, (%d)\n", szFullPath, nFileSize);
+	log_printf("\nSuccess: %s, (%d)\n", szFullPath, nFileSize);
 	return;
 
 ERROR:
