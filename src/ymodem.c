@@ -13,7 +13,7 @@
 #define DATA_SIZE_ORG		128
 #define DATA_SIZE_EXT		1024
 #define MODEM_CRC_SIZE		2
-#define TIMEOUT				1000
+#define TIMEOUT				3000
 
 #define LOG_NAME		"/ym.log"
 

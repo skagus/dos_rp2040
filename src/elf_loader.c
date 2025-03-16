@@ -253,14 +253,16 @@ void cmd_Load(uint8_t argc, char* argv[])
 		return;
 	}
 	int load_result = load(&gp_entry, argv[1]);
-	if(load_result >= 0)
-	{
-		printf("entry point: %p\n", gp_entry);
-	}
-	else
+	if(load_result < 0)
 	{
 		printf("load error: %d\n", load_result);
+		return;
 	}
+
+	printf("Pass : %X, %X, %X\n", &(argv[1]), atoi(argv[2]), *argv[2]);
+
+	int ret = gp_entry(argc - 1, &(argv[1]));
+	printf("\n\nResult: %d\n", ret);
 }
 
 void cmd_MemDump(uint8_t argc, char* argv[])

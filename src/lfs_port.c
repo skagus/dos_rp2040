@@ -44,7 +44,7 @@ static int block_sync(const struct lfs_config *cfg)
 
 #define CACHE_SIZE			(512)
 #define LOOKAHEAD_SIZE		(32)
-#define NUM_CHUNK			(8)
+#define NUM_CHUNK			(16)
 
 uint8_t lookahead_buffer[LOOKAHEAD_SIZE];
 uint8_t read_buffer[CACHE_SIZE];
@@ -71,7 +71,7 @@ struct lfs_config cfg = {
 	.lookahead_buffer = lookahead_buffer,
 	.name_max = 255,
 	.attr_max = 512,
-	.file_max = 1024 * 128,
+	.file_max = 1024 * 512,
 };
 
 lfs_t lfs;

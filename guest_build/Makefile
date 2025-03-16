@@ -2,13 +2,14 @@
 ################ Top configuration.
 PRJ_TOP = .
 OBJDIR = out
-TARGET = $(OBJDIR)/guest
+TARGET = guest
 
-OPTI = -O0
-MCU = cortex-m3
+OPTI = -O1
+MCU = cortex-m0plus
 
 VER_STRING := $$(date_time)_$(OPTI)
 
+GNU_PREFIX := arm-none-eabi-
 BUILD_STRICT = FALSE
 BUILD_PRINT = TRUE
 

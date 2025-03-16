@@ -66,7 +66,7 @@ endif
 CFLAGS  = $(FLAGS)
 CFLAGS += -std=gnu11 # c89, c99, gnu89, gnu99
 CFLAGS += -fstack-usage  # show stack usage for each function.
-CFLAGS += -fcallgraph-info  # make call graph information.
+#CFLAGS += -fcallgraph-info  # make call graph information.
 CFLAGS += $(DEP_OPT)
 CFLAGS += $(DEF_OPT)
 CFLAGS += $(INCLUDE)
