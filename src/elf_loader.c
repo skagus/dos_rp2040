@@ -129,39 +129,48 @@ static void dump_mem(int cnt_load,  struct lfs_file* p_file)
 	{
 		mem_chunk* p_mem = a_mem_chunks + i;
 		
-		lfs_file_seek(&lfs, p_file, p_mem->file_offset, LFS_SEEK_SET);
-
-		printf("chunk %2d size:%4lX  target addr: %8lX, file offset: %lX\n\t\t",
+		printf("chunk %2d size:%4lX  target addr: %8lX, file offset: %lX\n",
 				i, p_mem->size, p_mem->address, p_mem->file_offset);
 
-		int loaded = 0;
-		uint8_t* dst = (uint8_t*)p_mem->address;
-#if (0 == EN_REAL_LOAD)
-		uint8_t buffer[LOAD_SIZE];
-#endif
-		while(loaded < p_mem->size)
+		if(p_mem->file_offset > 0)
 		{
-			int to_read = p_mem->size - loaded;
-			if(to_read > LOAD_SIZE)
-			{
-				to_read = LOAD_SIZE;
-			}
-#if (0 == EN_REAL_LOAD)
-			lfs_file_read(&lfs, p_file, buffer, to_read);
-			printf("0x%8X : ", dst);
-			for(int i = 0; i< 4; i++)
-			{
-				printf("%02X ", buffer[i]);
-			}
-			break;
-#else
-			lfs_file_read(&lfs, p_file, dst, to_read);
-#endif
-			dst += to_read;
-			loaded += to_read;
-		}
+			lfs_file_seek(&lfs, p_file, p_mem->file_offset, LFS_SEEK_SET);
 
-		printf("\nload done\n");
+			int loaded = 0;
+			uint8_t* dst = (uint8_t*)p_mem->address;
+	#if (0 == EN_REAL_LOAD)
+			uint8_t buffer[LOAD_SIZE];
+	#endif
+			while(loaded < p_mem->size)
+			{
+				int to_read = p_mem->size - loaded;
+				if(to_read > LOAD_SIZE)
+				{
+					to_read = LOAD_SIZE;
+				}
+	#if (0 == EN_REAL_LOAD)
+				lfs_file_read(&lfs, p_file, buffer, to_read);
+				printf("0x%8X : ", dst);
+				for(int i = 0; i< 4; i++)
+				{
+					printf("%02X ", buffer[i]);
+				}
+				printf("\n");
+				break;
+	#else
+				lfs_file_read(&lfs, p_file, dst, to_read);
+	#endif
+				dst += to_read;
+				loaded += to_read;
+			}
+
+			printf("load done\n");
+		}
+		else
+		{
+			memset((void*)p_mem->address, 0, p_mem->size);
+			printf("zero fill done\n");
+		}
 	}
 }
 
@@ -201,11 +210,18 @@ static int read_program_table(int cnt_ptbl, struct lfs_file* p_file)
 				continue;
 			}
 
-			//		add_mem_chunk(target_start_addr, program_table.p_filesz, program_table.p_offset);
 			add_mem_chunk(cnt_load, program_table.p_vaddr, program_table.p_filesz, program_table.p_offset);
 			cnt_load++;
 		}
-		// else not a load able segment -> skip
+		else
+		{
+			printf("Non loadable : %X, %X, %X, %X, %X\n", 
+				program_table.p_type,
+				program_table.p_vaddr,
+				program_table.p_paddr,
+				program_table.p_memsz,
+				program_table.p_flags);
+		}
 	}
 	return cnt_load;
 }
@@ -259,7 +275,7 @@ void cmd_Load(uint8_t argc, char* argv[])
 		return;
 	}
 
-	printf("Pass : %X, %X, %X\n", &(argv[1]), atoi(argv[2]), *argv[2]);
+//	printf("Pass : %X, %X, %X\n", &(argv[1]), atoi(argv[2]), *argv[2]);
 
 	int ret = gp_entry(argc - 1, &(argv[1]));
 	printf("\n\nResult: %d\n", ret);

@@ -1,6 +1,7 @@
 
 MEMORY {
-	FLASH(rx) : ORIGIN = 0x10000000, LENGTH = 128K
+	FLASH(rx) : ORIGIN = 0x10000000, LENGTH = 96K
+	ROM_SYM(rx) : ORIGIN = 0x10018000, LENGTH = 32K
 	
 	/*
 	RAM(rwx) : ORIGIN =  0x20000000, LENGTH = 256K 
@@ -14,3 +15,12 @@ MEMORY {
 /* LittleFS 전용 영역 할당 */
 PROVIDE(__flash_fs_start = ORIGIN(FS_AREA));  /* 64KB 예약 */
 PROVIDE(__flash_fs_size = LENGTH(FS_AREA));                  /* 256KB 파일 시스템 */
+
+SECTIONS
+{
+	.SYM :
+	{
+		KEEP(*(.rom_table))
+		KEEP(*(*.symt*))
+	} >ROM_SYM
+}

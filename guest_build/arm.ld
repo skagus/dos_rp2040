@@ -6,8 +6,7 @@ ENTRY(main)
 
 MEMORY
 {
-	FLASH (rx) : ORIGIN = 0x20020000, LENGTH = 64K
-	RAM (rwx)  : ORIGIN = 0x20030000, LENGTH = 64K
+	RAM (rwx) : ORIGIN = 0x20020000, LENGTH = 128K
 }
 
 /* highest address of the user mode stack */
@@ -26,7 +25,7 @@ SECTIONS
 		*(.glue_7t)
 		*(.vfp11_veneer)
 		*(.v4_bx)
-	} >FLASH
+	} >RAM
 
 	/* for exception handling/unwind - some Newlib functions (in
 	common with C++ and STDC++) use this. */
@@ -35,7 +34,7 @@ SECTIONS
 		. = ALIGN(4);
 		*(.ARM.extab* .gnu.linkonce.armextab.*)
 		. = ALIGN(4);
-	} > FLASH
+	} > RAM
 
 	.ARM :
 	{
@@ -44,7 +43,7 @@ SECTIONS
 		*(.ARM.exidx*)
 		__exidx_end = .;
 		. = ALIGN(4);
-	} > FLASH
+	} > RAM
 
 	.preinit_array :
 	{
@@ -53,7 +52,7 @@ SECTIONS
 		KEEP (*(.preinit_array*))
 		PROVIDE_HIDDEN (__preinit_array_end = .);
 		. = ALIGN(4);
-	} >FLASH
+	} >RAM
 
 	.init_array :
 	{
@@ -63,7 +62,7 @@ SECTIONS
 		KEEP (*(.init_array*))
 		PROVIDE_HIDDEN (__init_array_end = .);
 		. = ALIGN(4);
-	} >FLASH
+	} >RAM
 
 	.fini_array :
 	{
@@ -73,7 +72,7 @@ SECTIONS
 		KEEP (*(.fini_array*))
 		PROVIDE_HIDDEN (__fini_array_end = .);
 		. = ALIGN(4);
-	} >FLASH
+	} >RAM
 
 	/* This is used by the startup in order to initialize the .data secion*/
 	_sidata = LOADADDR(.data);
@@ -167,3 +166,8 @@ SECTIONS
 	.debug_typenames 0 : { *(.debug_typenames) }
 	.debug_varnames  0 : { *(.debug_varnames) }
 }
+
+putchar = 0x10018000;
+getchar = 0x10018008;
+puts = 0x10018010;
+printf = 0x10018018;

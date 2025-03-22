@@ -51,7 +51,7 @@
 // USB CDC
 //--------------------------------------------------------------------+
 
-#if 1
+#if 1  // Use UART
 #define UART_ID		(uart0)
 #define UART_TX_PIN (0)
 #define UART_RX_PIN (1)
@@ -101,6 +101,73 @@ static void cli_task(void)
 	}
 }
 #endif
+
+#define ASM_JUMP_ENTRY(func) \
+	__asm volatile(\
+		"push {r4, lr}\n\t" \
+		"ldr r4, =%0\n\t" \
+		"blx r4\n\t" \
+		"pop {r4, pc}\n\t" \
+			::"i"(func):"r4");
+
+
+__attribute__ ((used, naked, section(".symt"))) void rom_table(void) 
+{
+	ASM_JUMP_ENTRY(putchar);
+	ASM_JUMP_ENTRY(getchar);
+	ASM_JUMP_ENTRY(puts);
+	ASM_JUMP_ENTRY(printf);
+// asm("mov %0, %1, ror #1" : "=r" (result) : "r" (value));
+#if 0
+int temp;
+	asm("push {%0, lr}\n\t"
+					"ldr %0, =getchar\n\t"
+					"bl %0\n\t"
+					"pop {%0, pc}": "=r" (temp):"r"(temp));
+#endif
+
+#if 0
+	__asm volatile("bx putchar\n\t"
+					"pop {pc}\n\t"
+					"nop\n\t");
+	__asm volatile("bx getchar\n\t"
+					"pop {pc}\n\t"
+					"nop\n\t");
+	__asm volatile("bx puts\n\t"
+					"pop {pc}\n\t"
+					"nop\n\t");
+	__asm volatile("bx printf\n\t"
+					"pop {pc}\n\t"
+					"nop\n\t");
+//				"push {r0, lr}\n\t"
+				
+//				"bl r1\n\t"
+//				"pop {r0, pc}":::"r0");
+
+#endif
+#if 0
+	__asm volatile("push {r4, lr}\n\t"
+					"ldr r4, =putchar\n\t"
+					"bl r4\n\t"
+					"pop {r4, pc}\n\t");
+	__asm volatile("push {r4, lr}\n\t"
+					"ldr r4, =puts\n\t"
+					"bl r4\n\t"
+					"pop {r4, pc}\n\t");
+	__asm volatile("push {r4, lr}\n\t"
+					"ldr r4, =printf\n\t"
+					"bl r4\n\t"
+					"pop {r4, pc}\n\t");
+#endif
+#if 0
+	__asm volatile("ldr r0, =putchar\n\t"
+				   "bx r0":::"r0");
+	__asm volatile("ldr r0, =puts\n\t"
+				   "bx r0":::"r0");
+	__asm volatile("ldr r0, =printf\n\t"
+				   "bx r0":::"r0");
+#endif
+}
 
 /*------------- MAIN -------------*/
 int main(void)

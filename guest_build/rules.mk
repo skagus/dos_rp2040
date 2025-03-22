@@ -50,7 +50,10 @@ FLAGS += -fdata-sections
 #FLAGS += -msave-restore 
 #FLAGS += -fno-unit-at-a-time
 #FLAGS += -mshort-calls
-FLAGS += --specs=nano.specs
+#FLAGS += --specs=nano.specs
+FLAGS += --specs=nosys.specs
+FLAGS += -nostdlib
+FLAGS += -nolibc
 FLAGS += -mfloat-abi=soft
 ## WARNING ##
 FLAGS += -Wcomment # enable warning for cascade comment.
@@ -115,12 +118,12 @@ LDFLAGS += -Xlinker -Map=$(TARGET).map
 LDFLAGS += -Xlinker --cref
 #LDFLAGS += -Wl,-Map=$(TARGET).map,--cref
 LDFLAGS += --specs=nosys.specs
+#LDFLAGS += --specs=nano.specs
 LDFLAGS += -nostartfiles
-LDFLAGS += --specs=nano.specs
-#LDFLAGS += -nodefaultlibs
+LDFLAGS += -nodefaultlibs
 LDFLAGS += -nolibc
-#LDFLAGS += -nostdlib
-LDFLAGS += -Xlinker --gc-sections
+LDFLAGS += -nostdlib
+#LDFLAGS += -Xlinker --gc-sections
 LDFLAGS += -Xlinker --print-memory-usage
 #LDFLAGS += -mcmodel=medany
 #LDFLAGS += -msmall-data-limit=8
