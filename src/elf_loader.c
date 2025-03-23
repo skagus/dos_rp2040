@@ -31,7 +31,8 @@
 typedef struct _mem_chunk
 {
 	uint32_t address;
-	uint32_t size;
+	uint32_t load_size;
+	uint32_t mem_size;
 	uint32_t file_offset;
 } mem_chunk;
 
@@ -113,12 +114,14 @@ static int read_elf_file_header(uint32_t* p_entry, struct lfs_file* p_file)
 	return ehdr.e_phnum;
 }
 
-void add_mem_chunk(int index, uint32_t target_addr, uint32_t size, uint32_t file_offset)
+void add_mem_chunk(int index, uint32_t target_addr, uint32_t load_size, uint32_t mem_size, uint32_t file_offset)
 {
 	mem_chunk* p_mem = a_mem_chunks + index;
-	printf("size:%4lX  target addr: %8lX, file offset: %lX\n", size, target_addr, file_offset);
+	printf("size:%4lX(%4lX)  target addr: %8lX, file offset: %lX\n",
+		load_size, mem_size, target_addr, file_offset);
 	p_mem->address = target_addr;
-	p_mem->size = size;
+	p_mem->load_size = load_size;
+	p_mem->mem_size = mem_size;
 	p_mem->file_offset = file_offset;
 }
 
@@ -129,8 +132,8 @@ static void dump_mem(int cnt_load,  struct lfs_file* p_file)
 	{
 		mem_chunk* p_mem = a_mem_chunks + i;
 		
-		printf("chunk %2d size:%4lX  target addr: %8lX, file offset: %lX\n",
-				i, p_mem->size, p_mem->address, p_mem->file_offset);
+		printf("chunk %2d size:%4lX(%4lX)  target addr: %8lX, file offset: %lX\n",
+				i, p_mem->load_size, p_mem->mem_size, p_mem->address, p_mem->file_offset);
 
 		if(p_mem->file_offset > 0)
 		{
@@ -141,9 +144,9 @@ static void dump_mem(int cnt_load,  struct lfs_file* p_file)
 	#if (0 == EN_REAL_LOAD)
 			uint8_t buffer[LOAD_SIZE];
 	#endif
-			while(loaded < p_mem->size)
+			while(loaded < p_mem->load_size)
 			{
-				int to_read = p_mem->size - loaded;
+				int to_read = p_mem->load_size - loaded;
 				if(to_read > LOAD_SIZE)
 				{
 					to_read = LOAD_SIZE;
@@ -164,11 +167,17 @@ static void dump_mem(int cnt_load,  struct lfs_file* p_file)
 				loaded += to_read;
 			}
 
+			uint32_t fill_size = p_mem->mem_size - p_mem->load_size;
+			if(fill_size > 0)
+			{
+				memset((void*)(p_mem->address + p_mem->load_size), 0, fill_size);
+			}
+
 			printf("load done\n");
 		}
 		else
 		{
-			memset((void*)p_mem->address, 0, p_mem->size);
+			memset((void*)p_mem->address, 0, p_mem->load_size);
 			printf("zero fill done\n");
 		}
 	}
@@ -210,7 +219,7 @@ static int read_program_table(int cnt_ptbl, struct lfs_file* p_file)
 				continue;
 			}
 
-			add_mem_chunk(cnt_load, program_table.p_vaddr, program_table.p_filesz, program_table.p_offset);
+			add_mem_chunk(cnt_load, program_table.p_vaddr, program_table.p_filesz, program_table.p_memsz, program_table.p_offset);
 			cnt_load++;
 		}
 		else
